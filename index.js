@@ -75,7 +75,7 @@ app.get('/viewVisitor', async (req, res) => {
 })
 
 app.get('/', (req, res) => {
-    res.send("VMS successfully deployed")
+    res.send("HAHAHAHHAHAHHA")
 })
 
 //register visitor
@@ -173,7 +173,7 @@ async function loginOwner(idNumber, hashed){
     });
   } 
   else {
-      console.log("Owner not registered")
+      res.send("Owner not registered")
   }
 }
 
