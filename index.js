@@ -2,7 +2,6 @@
 const express = require('express')
 const app = express()
 const port = process.env.PORT || 3000;
-
 app.use(express.json())
 var jwt = require('jsonwebtoken')
 
@@ -163,13 +162,13 @@ async function loginOwner(idNumber, hashed){
     //BCRYPT verify password
     bcrypt.compare(result.password, hashed, function(err, result){
       if(result == true){
-        console.log("Access granted. Welcome")
+        res.send("Access granted. Welcome")
         console.log("Password:", hashed)
         console.log("Role:", role)
         token = jwt.sign({idNumber: idNumber, role: role}, privatekey);
         console.log("Token:", token);
       }else{
-        console.log("Wrong password")
+        res.send("Wrong password")
       }
     });
   } 
