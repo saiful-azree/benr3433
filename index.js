@@ -6,6 +6,11 @@ const port = process.env.PORT || 3000;
 app.use(express.json())
 var jwt = require('jsonwebtoken')
 
+//mongoDB
+const { MongoClient} = require("mongodb");
+const uri = "mongodb+srv://fakhrul:1235@clusterfakhrul.bigkwnk.mongodb.net/"
+const  client = new MongoClient(uri)
+
 //bcrypt
 const bcrypt = require('bcrypt');
 const saltRounds = 10;
