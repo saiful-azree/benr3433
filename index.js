@@ -38,6 +38,36 @@ var checkpassword;
 app.use(express.json());
 
 //login as Owner
+/**
+ * @swagger
+ * /loginOwner:
+ *   post:
+ *     summary: Authenticate owner
+ *     description: Login with identification number and password
+ *     tags: [Owner]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idNumber:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Login successful
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *       '400':
+ *         description: Invalid request body
+ *       '401':
+ *         description: Unauthorized - Invalid credentials
+ */
 app.post( '/loginOwner',async function (req, res) {
   let {idNumber, password} = req.body
   const salt = await bcrypt.genSalt(saltRounds)
@@ -46,6 +76,36 @@ app.post( '/loginOwner',async function (req, res) {
 })
 
 //login as Security
+/**
+ * @swagger
+ * /loginSecurity:
+ *   post:
+ *     summary: Authenticate security personnel
+ *     description: Login with identification number and password
+ *     tags: [Security]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idNumber:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Login successful
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *       '400':
+ *         description: Invalid request body
+ *       '401':
+ *         description: Unauthorized - Invalid credentials
+ */
 app.post( '/loginSecurity',async function (req, res) {
   let {idNumber, password} = req.body
   const salt = await bcrypt.genSalt(saltRounds)
@@ -116,6 +176,29 @@ app.post('/registerOwner', async function (req, res){
 
 
 //view visitor 
+/**
+ * @swagger
+ * /viewVisitor:
+ *   get:
+ *     summary: View list of visitors
+ *     description: Retrieve a list of visitors (accessible to owners and security personnel)
+ *     tags: [Owner, Security]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: List of visitors retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *       '401':
+ *         description: Unauthorized - Invalid or missing token
+ *       '403':
+ *         description: Forbidden - User does not have access to view visitors
+ */
 app.get('/viewVisitor', async (req, res) => {
   await client.connect()
   let header = req.headers.authorization;
@@ -128,11 +211,61 @@ app.get('/viewVisitor', async (req, res) => {
   })
 })
 
-app.get('/', (req, res) => {
-    res.send("HAHAHAHHAHAHHA")
-})
-
 //register visitor
+/**
+ * @swagger
+ * /registerVisitor:
+ *   post:
+ *     summary: Register a visitor
+ *     description: Register a new visitor (accessible to owners and security personnel)
+ *     tags: [Owner, Security]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               idNumber:
+ *                 type: string
+ *               documentType:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *               birthDate:
+ *                 type: string
+ *               age:
+ *                 type: number
+ *               documentExpiry:
+ *                 type: string
+ *               company:
+ *                 type: string
+ *               TelephoneNumber:
+ *                 type: string
+ *               vehicleNumber:
+ *                 type: string
+ *               category:
+ *                 type: string
+ *               ethnicity:
+ *                 type: string
+ *               photoAttributes:
+ *                 type: string
+ *               passNumber:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Visitor registered successfully
+ *       '401':
+ *         description: Unauthorized - Invalid or missing token
+ *       '403':
+ *         description: Forbidden - User does not have access to register a visitor
+ */
 app.post('/registerVisitor', async function (req, res) {
   let header = req.headers.authorization;
   let token = header.split(' ')[1];
@@ -176,6 +309,34 @@ app.post('/registerVisitor', async function (req, res) {
 
 
 //change pass number
+/**
+ * @swagger
+ * /changePassNumber:
+ *   post:
+ *     summary: Change pass number
+ *     description: Change pass number for a user
+ *     tags: [Owner, Security]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               savedidNumber:
+ *                 type: string
+ *               newpassNumber:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Pass number changed successfully
+ *       '401':
+ *         description: Unauthorized - Invalid or missing token
+ *       '500':
+ *         description: Internal Server Error
+ */
 app.post('/changePassNumber', async function (req, res){
   const {savedidNumber, newpassNumber} = req.body
   await changePhoneNumber(savedidNumber, newpassNumber)
@@ -183,6 +344,34 @@ app.post('/changePassNumber', async function (req, res){
 })
 
 //delete visitor
+/**
+ * @swagger
+ * /deleteVisitor:
+ *   post:
+ *     summary: Delete a visitor
+ *     description: Delete a visitor by name and ID number
+ *     tags: [Owner, Security]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *               idNumber:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Visitor deleted successfully
+ *       '401':
+ *         description: Unauthorized - Invalid or missing token
+ *       '500':
+ *         description: Internal Server Error
+ */
 app.post('/deleteVisitor', async function (req, res){
   const {name, idNumber} = req.body
   await deleteVisitor(name, idNumber)
