@@ -5,6 +5,22 @@ const port = process.env.PORT || 3000;
 app.use(express.json())
 var jwt = require('jsonwebtoken')
 
+//swagger
+const swaggerUi = require('swagger-ui-express');
+const swaggerJsdoc = require('swagger-jsdoc');
+const options = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'VMS API',
+            version: '1.0.0'
+        },
+    },
+    apis: ['./index.js'],
+};
+const swaggerSpec = swaggerJsdoc(options);
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 //mongoDB
 const { MongoClient} = require("mongodb");
 const uri = "mongodb+srv://fakhrul:1235@clusterfakhrul.bigkwnk.mongodb.net/"
@@ -38,6 +54,42 @@ app.post( '/loginSecurity',async function (req, res) {
 })
 
 //register Owner
+/**
+ * @swagger
+ * /registerOwner:
+ *   post:
+ *     summary: Register an owner
+ *     description: Register a new owner with security role
+ *     tags: [Owner]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               role:
+ *                 type: string
+ *               name:
+ *                 type: string
+ *               idNumber:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: Owner registered successfully
+ *       '401':
+ *         description: Unauthorized - Invalid or missing token
+ *       '403':
+ *         description: Forbidden - User does not have access to register an owner
+ */
 app.post('/registerOwner', async function (req, res){
   let header = req.headers.authorization;
   let token = header.split(' ')[1];
@@ -60,6 +112,8 @@ app.post('/registerOwner', async function (req, res){
     }
 })
 })
+
+
 
 //view visitor 
 app.get('/viewVisitor', async (req, res) => {

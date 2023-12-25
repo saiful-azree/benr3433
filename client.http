@@ -5,3 +5,10 @@ Content-Type: application/json
     "idNumber": "20223112",
     "password": "12345"
 }
+
+###
+
+GET https://benr3433-vms.azurewebsites.net/
+Content-Type: application/json
+
+
