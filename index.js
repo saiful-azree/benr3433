@@ -218,7 +218,7 @@ app.get('/viewVisitor', async (req, res) => {
  *   post:
  *     summary: Register a visitor
  *     description: Register a new visitor (accessible to owners and security personnel)
- *     tags: [Owner, Security]
+ *     tags: [Owner]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -350,7 +350,7 @@ app.post('/changePassNumber', async function (req, res){
  *   post:
  *     summary: Delete a visitor
  *     description: Delete a visitor by name and ID number
- *     tags: [Owner, Security]
+ *     tags: [Owner]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
