@@ -15,6 +15,15 @@ const options = {
             title: 'VMS API',
             version: '1.0.0'
         },
+        components: {  // Add 'components' section
+          securitySchemes: {  // Define 'securitySchemes'
+              bearerAuth: {  // Define 'bearerAuth'
+                  type: 'http',
+                  scheme: 'bearer',
+                  bearerFormat: 'JWT'
+              }
+          }
+      }
     },
     apis: ['./index.js'],
 };
@@ -31,8 +40,8 @@ const bcrypt = require('bcrypt');
 const saltRounds = 10;
 var hashed;
 //token
-var token
-const privatekey = "PRXWGaming"
+var token;
+const privatekey = "PRXWGaming";
 var checkpassword;
 
 app.use(express.json());
@@ -69,10 +78,9 @@ app.use(express.json());
  *         description: Unauthorized - Invalid credentials
  */
 app.post( '/loginOwner',async function (req, res) {
-  let {idNumber, password} = req.body
-  const salt = await bcrypt.genSalt(saltRounds)
-  hashed = await bcrypt.hash(password, salt)
-  await loginOwner(idNumber, hashed)
+  let {idNumber, password} = req.body;
+  const hashed = await generateHash(password);
+  await loginOwner(res, idNumber, hashed)
 })
 
 //login as Security
@@ -108,9 +116,8 @@ app.post( '/loginOwner',async function (req, res) {
  */
 app.post( '/loginSecurity',async function (req, res) {
   let {idNumber, password} = req.body
-  const salt = await bcrypt.genSalt(saltRounds)
-  hashed = await bcrypt.hash(password, salt)
-  await loginSecurity(idNumber, hashed)
+  const hashed = await generateHash(password);
+  await loginSecurity(res, idNumber, hashed)
 })
 
 //register Owner
@@ -182,7 +189,7 @@ app.post('/registerOwner', async function (req, res){
  *   get:
  *     summary: View list of visitors
  *     description: Retrieve a list of visitors (accessible to owners and security personnel)
- *     tags: [Owner, Security]
+ *     tags: [Owner, Security, Visitor]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -199,17 +206,15 @@ app.post('/registerOwner', async function (req, res){
  *       '403':
  *         description: Forbidden - User does not have access to view visitors
  */
-app.get('/viewVisitor', async (req, res) => {
+app.post('/viewVisitor', async function(req, res){
   await client.connect()
   let header = req.headers.authorization;
   let token = header.split(' ')[1];
-  jwt.verify(token, privatekey, async function(err, decoded) {
-    console.log(decoded)
-    if (await decoded.role == "owner" || await decoded.role == "security"){
-      res.send(await client.db("assignmentCondo").collection("visitor").find({}).toArray())
-    }
-  })
-})
+  jwt.verify(token, privatekey);
+    console.log(decoded.role);
+      res.send(await viewVisitor(decoded.idNumber, decoded.role));
+  }
+);
 
 //register visitor
 /**
@@ -396,8 +401,40 @@ async function createListing2(client, newListing){
   console.log(`New listing created with the following id: ${result.insertedId}`);
 }
 
+//READ(login as visitor)
+async function loginVisitor(res, idNumber, password){
+  await client.connect();
+  const exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: idNumber});
+  if(exist){
+    if(bcrypt.compare(password, await exist.password)){
+      console.log("WELCOME!!");
+      token = jwt.sign({idNumber: idNumber, privatekey});
+      res.send("Token: "+ token);
+    }
+    else{
+      console.log("Wrong password");
+    }
+  }
+  else{
+    console.log("Visitor is not exist/registered");
+  }
+}
+
+//READ(view all visitors)
+async function viewVisitor(idNumber, role){
+  var exist;
+  await client.connect();
+  if(role == "owner" || role == "security"){
+    exist = await client.db("assignmentCondo").collection("visitor").find({}).toArray();
+  }
+  else if(role == "visitor"){
+    exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: idNumber});
+  }
+  return exist;
+}
+
 //READ(login as Owner)
-async function loginOwner(idNumber, hashed){
+async function loginOwner(res, idNumber, hashed){
   await client.connect()
   const result = await client.db("assignmentCondo").collection("owner").findOne({ idNumber: idNumber });
   const role = await result.role
@@ -405,18 +442,18 @@ async function loginOwner(idNumber, hashed){
     //BCRYPT verify password
     bcrypt.compare(result.password, hashed, function(err, result){
       if(result == true){
-        res.send("Access granted. Welcome")
-        console.log("Password:", hashed)
-        console.log("Role:", role)
-        token = jwt.sign({idNumber: idNumber, role: role}, privatekey);
-        console.log("Token:", token);
+        console.log("Access granted. Welcome");
+        console.log("Password:", hashed);
+        console.log("Role:", role);
+        const token = jwt.sign({idNumber: idNumber, role: role}, privatekey);
+        res.send("Token: ", token);
       }else{
-        res.send("Wrong password")
+        console.log("Wrong password");
       }
     });
   } 
   else {
-      res.send("Owner not registered")
+      console.log("Owner not registered");
   }
 }
 
@@ -432,8 +469,8 @@ async function loginSecurity(idNumber, hashed){
         console.log("Access granted. Welcome")
         console.log("Password:", hashed)
         console.log("Role:", role)
-        token = jwt.sign({idNumber: idNumber, role: role}, privatekey);
-        console.log("Token:", token);
+        const token = jwt.sign({idNumber: idNumber, role: role}, privatekey);
+        res.send("Token:", token);
       }else{
         console.log("Wrong password")
       }
@@ -471,11 +508,12 @@ async function registerVisitor(newrole, newname, newidNumber, newdocumentType, n
                         newcategory, newethnicity, newphotoAttributes, newpassNumber){
   //TODO: Check if username exist
   await client.connect()
-  const exist = await client.db("assignmentCondo").collection("visitor").findOne({name: newname})
+  const exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: newidNumber})
+  hashed = await bcrypt.hash(password, 10);
   if(exist){
       console.log("Visitor has already registered")
   }else{
-      await createListing2(client,
+      await client.db("assignmentCondo").collection("visitor").insertOne(
         {
           role: newrole,
           name: newname,
@@ -525,6 +563,13 @@ async function deleteVisitor(oldname, oldidNumber){
   }else{
     console.log("Visitor does not exist.")
   }
+}
+
+//Generate hash password
+async function generateHash(password){
+  const saltRounds = 10
+  const hashedPassword = await bcrypt.hash(password, saltRounds);
+  return hashedPassword;
 }
 
 //Verify JWT Token
