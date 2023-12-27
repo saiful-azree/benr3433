@@ -46,6 +46,42 @@ var checkpassword;
 
 app.use(express.json());
 
+//login as Visitor
+/**
+ * @swagger
+ * /loginVisitor:
+ *   post:
+ *     summary: Authenticate visitor
+ *     description: Login with identification number and password for a visitor
+ *     tags: [Visitor]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idNumber:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Login successful
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *       '400':
+ *         description: Invalid request body
+ *       '401':
+ *         description: Unauthorized - Invalid credentials
+ */
+app.post('/loginVisitor', async function(req, res){
+  const {idNumber, password} = req.body;
+  loginVisitor(res, idNumber , password);
+});
+
 //login as Owner
 /**
  * @swagger
@@ -206,7 +242,7 @@ app.post('/registerOwner', async function (req, res){
  *       '403':
  *         description: Forbidden - User does not have access to view visitors
  */
-app.post('/viewVisitor', async function(req, res){
+app.get('/viewVisitor', async function(req, res){
   await client.connect()
   let header = req.headers.authorization;
   let token = header.split(' ')[1];
