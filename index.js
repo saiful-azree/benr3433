@@ -32,7 +32,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 //mongoDB
 const { MongoClient} = require("mongodb");
-const uri = "mongodb+srv://fakhrul:1235@clusterfakhrul.bigkwnk.mongodb.net/"
+const uri = "mongodb+srv://fakhrul:1235@clusterfakhrul.bigkwnk.mongodb.net/?retryWrites=true&w=majority"
 const  client = new MongoClient(uri)
 
 //bcrypt
@@ -218,39 +218,45 @@ app.post('/registerOwner', async function (req, res){
 
 
 
-//view visitor 
+//View Visitor
 /**
  * @swagger
  * /viewVisitor:
- *   get:
- *     summary: View list of visitors
- *     description: Retrieve a list of visitors (accessible to owners and security personnel)
- *     tags: [Owner, Security, Visitor]
+ *   post:
+ *     summary: "View visitors"
+ *     description: "Retrieve visitors based on user role"
+ *     tags:
+ *       - Owner & Security
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       '200':
- *         description: List of visitors retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
+ *         description: "Visitors retrieved successfully"
+ *       '400':
+ *         description: "Invalid token or error in retrieving visitors"
  *       '401':
- *         description: Unauthorized - Invalid or missing token
- *       '403':
- *         description: Forbidden - User does not have access to view visitors
+ *         description: "Unauthorized - Invalid token or insufficient permissions"
+ *     consumes:
+ *       - "application/json"
+ *     produces:
+ *       - "application/json"
+ *   securityDefinitions:
+ *     JWT:
+ *       type: "apiKey"
+ *       name: "Authorization"
+ *       in: "header"
  */
-app.get('/viewVisitor', async function(req, res){
-  await client.connect()
-  let header = req.headers.authorization;
-  let token = header.split(' ')[1];
-  jwt.verify(token, privatekey);
-    console.log(decoded.role);
+app.post('/viewVisitor', async function(req, res){
+  var token = req.header('Authorization').split(" ")[1];
+  try {
+      var decoded = jwt.verify(token, privatekey);
+      console.log(decoded.role);
       res.send(await viewVisitor(decoded.idNumber, decoded.role));
-  }
-);
+    } catch(err) {
+      res.send("Error!");
+    }
+});
+
 
 //register visitor
 /**
@@ -425,6 +431,26 @@ app.listen(port, () => {
 
 //////////FUNCTION//////////
 
+async function logs(idNumber, name, role){
+  // Get the current date and time
+  const currentDate = new Date();
+
+  // Format the date
+  const formattedDate = currentDate.toLocaleDateString(); // Format: MM/DD/YYYY
+
+  // Format the time
+  const formattedTime = currentDate.toLocaleTimeString(); // Format: HH:MM:SS
+  await client.connect()
+  client.db("VMS").collection("Logs").insertOne({
+      idNumber: idNumber,
+      name: name,
+      Type: role,
+      date: formattedDate,
+      entry_time: formattedTime,
+      exit_time: "pending"
+  })
+}
+
 //CREATE(createListing for owner)
 async function createListing1(client, newListing){
   const result = await client.db("assignmentCondo").collection("owner").insertOne(newListing);
@@ -440,20 +466,20 @@ async function createListing2(client, newListing){
 //READ(login as visitor)
 async function loginVisitor(res, idNumber, password){
   await client.connect();
-  const exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: idNumber});
-  if(exist){
-    if(bcrypt.compare(password, await exist.password)){
-      console.log("WELCOME!!");
-      token = jwt.sign({idNumber: idNumber, privatekey});
-      res.send("Token: "+ token);
+    const exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: idNumber});
+    if(exist){
+        if(bcrypt.compare(password,await exist.password)){
+        console.log("Welcome!");
+        token = jwt.sign({ idNumber: idNumber, role: exist.role}, privatekey);
+        res.send("Token: "+ token);
+        //Masukkan logs
+        await logs(id, exist.name, exist.role);
+        }else{
+            console.log("Wrong password!")
+        }
+    }else{
+        console.log("Visitor not registered!");
     }
-    else{
-      console.log("Wrong password");
-    }
-  }
-  else{
-    console.log("Visitor is not exist/registered");
-  }
 }
 
 //READ(view all visitors)
@@ -472,25 +498,20 @@ async function viewVisitor(idNumber, role){
 //READ(login as Owner)
 async function loginOwner(res, idNumber, hashed){
   await client.connect()
-  const result = await client.db("assignmentCondo").collection("owner").findOne({ idNumber: idNumber });
-  const role = await result.role
-  if (result) {
-    //BCRYPT verify password
-    bcrypt.compare(result.password, hashed, function(err, result){
-      if(result == true){
-        console.log("Access granted. Welcome");
-        console.log("Password:", hashed);
-        console.log("Role:", role);
-        const token = jwt.sign({idNumber: idNumber, role: role}, privatekey);
-        res.send("Token: ", token);
-      }else{
-        console.log("Wrong password");
-      }
-    });
-  } 
-  else {
-      console.log("Owner not registered");
-  }
+  const exist = await client.db("assignmentCondo").collection("owner").findOne({ idNumber: idNumber });
+    if (exist) {
+        const passwordMatch = await bcrypt.compare(exist.password, hashed);
+        if (passwordMatch) {
+            console.log("Login Success!\nRole: "+ exist.role);
+            logs(idNumber, exist.name, exist.role);
+            const token = jwt.sign({ idNumber: idNumber, role: exist.role }, privatekey);
+            res.send("Token: " + token);
+        } else {
+            console.log("Wrong password!");
+        }
+    } else {
+        console.log("Username not exist!");
+    }
 }
 
 //READ(login as Security)
@@ -624,6 +645,6 @@ function verifyToken(req, res, next) {
       return res.status(401).send('Invalid token');
     }
     res.user = decoded;
-    next();
-  });
+    next();
+  });
 }

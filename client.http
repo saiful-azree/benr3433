@@ -6,9 +6,11 @@ Content-Type: application/json
     "password": "12345"
 }
 
+# GET /viewVisitor
 ###
 
-GET https://benr3433-vms.azurewebsites.net/
-Content-Type: application/json
+# Request to viewVisitor endpoint
+GET http://localhost:3000/viewVisitor
+Authorization: Bearer your-token-here
 
-
+# Response should be printed below
