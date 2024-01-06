@@ -301,8 +301,7 @@ app.post('/viewVisitor', async function(req, res){
  *   post:
  *     summary: "View hosts"
  *     description: "Retrieve hosts based on user role"
- *     tags:
- *       - Admin
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -321,7 +320,6 @@ app.post('/viewVisitor', async function(req, res){
  *       type: "apiKey"
  *       name: "Authorization"
  *       in: "header"
- *     tags: [Admin]
  */
 app.post('/viewHost', async function(req, res){
   var token = req.header('Authorization').split(" ")[1];
@@ -453,7 +451,7 @@ app.post('/createpassVisitor', async function(req, res){
  */
 app.post('/changePassNumber', async function (req, res){
   const {savedidNumber, newpassNumber} = req.body
-  await changePhoneNumber(savedidNumber, newpassNumber)
+  await changePassNumber(savedidNumber, newpassNumber)
   res.send(req.body)
 })
 
@@ -491,6 +489,72 @@ app.post('/deleteVisitor', async function (req, res){
   await deleteVisitor(name, idNumber)
   res.send(req.body)
 })
+
+// Retrieve Phone Number
+/**
+ * @swagger
+ * /retrievePhoneNumber:
+ *   post:
+ *     summary: Retrieve host phone number
+ *     description: Retrieve the phone number of a host based on the provided ID number (accessible to security personnel).
+ *     tags: [Security]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idNumber:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Successfully retrieved the host's phone number.
+ *         schema:
+ *           type: object
+ *           properties:
+ *             phoneNumber:
+ *               type: string
+ *       '401':
+ *         description: Unauthorized - Invalid or expired token.
+ *       '403':
+ *         description: Forbidden - User does not have the necessary permissions.
+ *       '404':
+ *         description: Visitor with the provided ID number does not exist in the database.
+ *       '500':
+ *         description: Internal server error occurred.
+ */
+app.post('/retrievePhoneNumber', async function (req, res){
+  var token = req.header('Authorization').split(" ")[1];
+  let decoded;
+
+  try {
+    decoded = jwt.verify(token, privatekey);
+  } catch(err) {
+    console.log("Error decoding token:", err.message);
+    return res.status(401).send("Unauthorized");
+  }
+
+  if (decoded && (decoded.role === "security")){
+    const { idNumber } = req.body;
+
+    try {
+      const phoneNumberResponse = await retrievePhoneNumber(idNumber);
+      // Send the phone number in the response body
+      res.status(200).send(phoneNumberResponse);
+    } catch (error) {
+      // Handle errors such as visitor not found
+      console.log(error.message);
+      res.status(404).send(error.message);
+    }
+  } else {
+    console.log("Access Denied!");
+    res.status(403).send("Access Denied");
+  }
+});
+
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
@@ -692,8 +756,23 @@ async function createpassVisitor(newrole, newname, newidNumber, newdocumentType,
   }
 } 
 
+//READ(retrieve phone number for visitor)
+async function retrievePhoneNumber(idNumber){
+  await client.connect()
+  const exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: idNumber})
+  
+  if(exist){
+    // Return the phone number in the response body
+    return { phoneNumber: exist.TelephoneNumber };
+  } else {
+    // Handle the case where the visitor does not exist
+    throw new Error("Visitor does not exist.");
+  }
+}
+
+
 //UPDATE(change pass number)
-async function changePhoneNumber(savedidNumber, newpassNumber){
+async function changePassNumber(savedidNumber, newpassNumber){
   await client.connect()
   const exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: savedidNumber})
   if(exist){
