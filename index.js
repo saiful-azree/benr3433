@@ -156,6 +156,43 @@ app.post( '/loginSecurity',async function (req, res) {
   await loginSecurity(res, idNumber, hashed)
 })
 
+//login as Admin
+/**
+ * @swagger
+ * /loginAdmin:
+ *   post:
+ *     summary: Authenticate administrator personnel
+ *     description: Login with identification number and password
+ *     tags: [Admin]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idNumber:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Login successful
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *       '400':
+ *         description: Invalid request body
+ *       '401':
+ *         description: Unauthorized - Invalid credentials
+ */
+app.post( '/loginAdmin',async function (req, res) {
+  let {idNumber, password} = req.body
+  const hashed = await generateHash(password);
+  await loginAdmin(res, idNumber, hashed)
+})
+
 //register Host
 /**
  * @swagger
@@ -261,11 +298,11 @@ app.post('/viewVisitor', async function(req, res){
 //register visitor
 /**
  * @swagger
- * /registerVisitor:
+ * /createpassVisitor:
  *   post:
- *     summary: Register a visitor
- *     description: Register a new visitor (accessible to Hosts and security personnel)
- *     tags: [Host]
+ *     summary: Create a visitor pass
+ *     description: Create a new visitor pass (accessible to Hosts and security personnel)
+ *     tags: [Host, Security]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -305,6 +342,8 @@ app.post('/viewVisitor', async function(req, res){
  *                 type: string
  *               passNumber:
  *                 type: string
+ *               password:
+ *                type: string
  *     responses:
  *       '200':
  *         description: Visitor registered successfully
@@ -313,44 +352,33 @@ app.post('/viewVisitor', async function(req, res){
  *       '403':
  *         description: Forbidden - User does not have access to register a visitor
  */
-app.post('/registerVisitor', async function (req, res) {
-  let header = req.headers.authorization;
-  let token = header.split(' ')[1];
-  
-  jwt.verify(token, privatekey, async function(err, decoded) {
-    if (err) {
-      console.log("Error decoding token:", err);
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-    
-    console.log(decoded);
-    
-    if (decoded && (decoded.role === "Host" || decoded.role === "security")) {
-      const data = req.body;
-      
-      res.send(
-        registerVisitor(
-          data.role,
-          data.name,
-          data.idNumber,
-          data.documentType,
-          data.gender,
-          data.birthDate,
-          data.age,
-          data.documentExpiry,
-          data.company,
-          data.TelephoneNumber,
-          data.vehicleNumber,
-          data.category,
-          data.ethnicity,
-          data.photoAttributes,
-          data.passNumber
-        )
-      );
-    } else {
-      console.log("You have no access to register a visitor!");
-    }
-  });
+app.post('/createpassVisitor', async function(req, res){
+  var token = req.header('Authorization').split(" ")[1];
+  let decoded;
+
+  try {
+      decoded = jwt.verify(token, privatekey);
+      console.log(decoded.role);
+  } catch(err) {
+      console.log("Error decoding token:", err.message);
+      return res.status(401).send("Unauthorized"); // Send a 401 Unauthorized response
+  }
+
+  if (decoded && (decoded.role === "Host" || decoded.role === "security")){
+      const {
+          role, name, idNumber, documentType, gender, birthDate, age, 
+          documentExpiry, company, TelephoneNumber, vehicleNumber, 
+          category, ethnicity, photoAttributes, passNumber, password
+      } = req.body;
+
+      await createpassVisitor(role, name, idNumber, documentType, gender, birthDate, 
+                              age, documentExpiry, company, TelephoneNumber, 
+                              vehicleNumber, category, ethnicity, photoAttributes, 
+                              passNumber, password);
+  } else {
+      console.log("Access Denied!");
+      res.status(403).send("Access Denied"); // Send a 403 Forbidden response
+  }
 });
 
 
@@ -519,27 +547,41 @@ async function loginHost(res, idNumber, hashed){
 }
 
 //READ(login as Security)
-async function loginSecurity(idNumber, hashed){
+async function loginSecurity(res, idNumber, hashed){
   await client.connect()
-  const result = await client.db("assignmentCondo").collection("security").findOne({ idNumber: idNumber });
-  const role = await result.role
-  if (result) {
-    //BCRYPT verify password
-    bcrypt.compare(result.password, hashed, function(err, result){
-      if(result == true){
-        console.log("Access granted. Welcome")
-        console.log("Password:", hashed)
-        console.log("Role:", role)
-        const token = jwt.sign({idNumber: idNumber, role: role}, privatekey);
-        res.send("Token:", token);
-      }else{
-        console.log("Wrong password")
-      }
-    });
-  }
-  else {
-      console.log("Security not registered")
-  }
+  const exist = await client.db("assignmentCondo").collection("security").findOne({ idNumber: idNumber });
+    if (exist) {
+        const passwordMatch = await bcrypt.compare(exist.password, hashed);
+        if (passwordMatch) {
+            console.log("Login Success!\nRole: "+ exist.role);
+            logs(idNumber, exist.name, exist.role);
+            const token = jwt.sign({ idNumber: idNumber, role: exist.role }, privatekey);
+            res.send("Token: " + token);
+        } else {
+            console.log("Wrong password!");
+        }
+    } else {
+        console.log("Username not exist!");
+    }
+}
+
+//READ(login as Admin)
+async function loginAdmin(res,idNumber, hashed){
+  await client.connect()
+  const exist = await client.db("assignmentCondo").collection("admin").findOne({ idNumber: idNumber });
+    if (exist) {
+        const passwordMatch = await bcrypt.compare(exist.password, hashed);
+        if (passwordMatch) {
+            console.log("Login Success!\nRole: "+ exist.role);
+            logs(idNumber, exist.name, exist.role);
+            const token = jwt.sign({ idNumber: idNumber, role: exist.role }, privatekey);
+            res.send("Token: " + token);
+        } else {
+            console.log("Wrong password!");
+        }
+    } else {
+        console.log("Username not exist!");
+    }
 }
 
 //CREATE(register Host)
@@ -564,13 +606,13 @@ async function registerHost(newrole, newname, newidNumber, newemail, newpassword
 }
 
 //CREATE(register Visitor)
-async function registerVisitor(newrole, newname, newidNumber, newdocumentType, newgender, newbirthDate, 
+async function createpassVisitor(newrole, newname, newidNumber, newdocumentType, newgender, newbirthDate, 
                         newage, newdocumentExpiry, newcompany, newTelephoneNumber, newvehicleNumber,
-                        newcategory, newethnicity, newphotoAttributes, newpassNumber){
+                        newcategory, newethnicity, newphotoAttributes, newpassNumber, password){
   //TODO: Check if username exist
   await client.connect()
   const exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: newidNumber})
-  hashed = await bcrypt.hash(password, 10);
+  //hashed = await bcrypt.hash(password, 10);
   if(exist){
       console.log("Visitor has already registered")
   }else{
@@ -590,7 +632,8 @@ async function registerVisitor(newrole, newname, newidNumber, newdocumentType, n
           category: newcategory,
           ethnicity: newethnicity,
           photoAttributes: newphotoAttributes,
-          passNumber: newpassNumber 
+          passNumber: newpassNumber,
+          password: password 
         }
       );
       console.log("Registered successfully!")
