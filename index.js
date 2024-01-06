@@ -163,7 +163,6 @@ app.post( '/loginSecurity',async function (req, res) {
  *   post:
  *     summary: Authenticate administrator personnel
  *     description: Login with identification number and password
- *     tags: [Admin]
  *     requestBody:
  *       required: true
  *       content:
@@ -186,6 +185,7 @@ app.post( '/loginSecurity',async function (req, res) {
  *         description: Invalid request body
  *       '401':
  *         description: Unauthorized - Invalid credentials
+ *     tags: [Admin]
  */
 app.post( '/loginAdmin',async function (req, res) {
   let {idNumber, password} = req.body
@@ -294,6 +294,43 @@ app.post('/viewVisitor', async function(req, res){
     }
 });
 
+//View Host
+/**
+ * @swagger
+ * /viewHost:
+ *   post:
+ *     summary: "View hosts"
+ *     description: "Retrieve hosts based on user role"
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: "Hosts retrieved successfully"
+ *       '400':
+ *         description: "Invalid token or error in retrieving hosts"
+ *       '401':
+ *         description: "Unauthorized - Invalid token or insufficient permissions"
+ *     consumes:
+ *       - "application/json"
+ *     produces:
+ *       - "application/json"
+ *   securityDefinitions:
+ *     JWT:
+ *       type: "apiKey"
+ *       name: "Authorization"
+ *       in: "header"
+ *     tags: [Admin]
+ */
+app.post('/viewHost', async function(req, res){
+  var token = req.header('Authorization').split(" ")[1];
+  try {
+      var decoded = jwt.verify(token, privatekey);
+      console.log(decoded.role);
+      res.send(await viewHost(decoded.idNumber, decoded.role));
+    } catch(err) {
+      res.send("Error!");
+    }
+});
 
 //register visitor
 /**
@@ -469,7 +506,7 @@ async function logs(idNumber, name, role){
   // Format the time
   const formattedTime = currentDate.toLocaleTimeString(); // Format: HH:MM:SS
   await client.connect()
-  client.db("VMS").collection("Logs").insertOne({
+  client.db("assignmentCondo").collection("logs").insertOne({
       idNumber: idNumber,
       name: name,
       Type: role,
@@ -523,6 +560,19 @@ async function viewVisitor(idNumber, role){
   }
   else if(role == "visitor"){
     exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: idNumber});
+  }
+  return exist;
+}
+
+//READ(view all visitors)
+async function viewHost(idNumber, role){
+  var exist;
+  await client.connect();
+  if(role == "admin"){
+    exist = await client.db("assignmentCondo").collection("owner").find({}).toArray();
+  }
+  else if(role == "security" || role == "visitor"){
+    console.log("Visitor not exist!");
   }
   return exist;
 }
