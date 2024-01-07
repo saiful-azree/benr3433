@@ -418,43 +418,6 @@ app.post('/createpassVisitor', async function(req, res){
   }
 });
 
-
-
-//change pass number
-/**
- * @swagger
- * /changePassNumber:
- *   post:
- *     summary: Change pass number
- *     description: Change pass number for a user
- *     tags: [Host, Security]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               savedidNumber:
- *                 type: string
- *               newpassNumber:
- *                 type: string
- *     responses:
- *       '200':
- *         description: Pass number changed successfully
- *       '401':
- *         description: Unauthorized - Invalid or missing token
- *       '500':
- *         description: Internal Server Error
- */
-app.post('/changePassNumber', async function (req, res){
-  const {savedidNumber, newpassNumber} = req.body
-  await changePassNumber(savedidNumber, newpassNumber)
-  res.send(req.body)
-})
-
 //delete visitor
 /**
  * @swagger
@@ -555,6 +518,71 @@ app.post('/retrievePhoneNumber', async function (req, res){
   }
 });
 
+// Manage User Role
+/**
+ * @swagger
+ * /manageRole:
+ *   post:
+ *     summary: Manage user role
+ *     description: Manage the role of a user by updating the role associated with the provided ID number (accessible to administrators).
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               idNumber:
+ *                 type: string
+ *               role:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: Role managed successfully.
+ *         schema:
+ *           type: object
+ *           properties:
+ *             message:
+ *               type: string
+ *               example: Role managed successfully!
+ *       '401':
+ *         description: Unauthorized - Invalid or missing token.
+ *       '403':
+ *         description: Forbidden - User does not have the necessary permissions.
+ *       '404':
+ *         description: Username with the provided ID number does not exist in the database.
+ *       '500':
+ *         description: Internal server error occurred.
+ */
+app.post('/manageRole', async function (req, res){
+  var token = req.header('Authorization').split(" ")[1];
+  let decoded;
+
+  try {
+    decoded = jwt.verify(token, privatekey);
+  } catch(err) {
+    console.log("Error decoding token:", err.message);
+    return res.status(401).send("Unauthorized");
+  }
+
+  if (decoded && (decoded.role === "admin")){
+    const { idNumber, role } = req.body;
+
+    try {
+      await manageRole(idNumber, role);
+      res.status(200).send("Role managed successfully!");
+    } catch (error) {
+      console.log(error.message);
+      res.status(404).send(error.message);
+    }
+  } else {
+    console.log("Access Denied!");
+    res.status(403).send("Access Denied");
+  }
+});
 
 app.listen(port, () => {
   console.log(`Example app listening on port ${port}`)
@@ -759,7 +787,7 @@ async function createpassVisitor(newrole, newname, newidNumber, newdocumentType,
 //READ(retrieve phone number for visitor)
 async function retrievePhoneNumber(idNumber){
   await client.connect()
-  const exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: idNumber})
+  const exist = await client.db("assignmentCondo").collection("host").findOne({idNumber: idNumber})
   
   if(exist){
     // Return the phone number in the response body
@@ -770,18 +798,17 @@ async function retrievePhoneNumber(idNumber){
   }
 }
 
-
-//UPDATE(change pass number)
-async function changePassNumber(savedidNumber, newpassNumber){
+async function manageRole(idNumber, role){
   await client.connect()
-  const exist = await client.db("assignmentCondo").collection("visitor").findOne({idNumber: savedidNumber})
+  const exist = await client.db("assignmentCondo").collection("owner").findOne({idNumber: idNumber})
   if(exist){
-    await client.db("assignmentCondo").collection("visitor").updateOne({idNumber: savedidNumber}, {$set: {passNumber: newpassNumber}})
-    console.log("Visitor's pass number has changed successfuly.")
+    await client.db("assignmentCondo").collection("owner").updateOne({idNumber: idNumber}, {$set: {role: role}})
+    console.log("Role managed successfully!")
   }else{
-    console.log("The visitor does not exist.")
+    console.log("Username not exist!")
   }
 }
+
 
 //DELETE(delete visitor)
 async function deleteVisitor(oldname, oldidNumber){
