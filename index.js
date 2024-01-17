@@ -1271,6 +1271,9 @@ async function issuepassVisitor(newrole, newname, newidNumber, newdocumentType, 
     return res.status(400).send('Visitor has already registered'); // Send a 400 Bad Request status
   }
 
+  // Hash the password using bcrypt
+  const hashedPassword = await generateHash(password);
+
   const currentDate = new Date(); // Get the current date and time
   await client.db('assignmentCondo').collection('visitor').insertOne({
     role: newrole,
@@ -1288,7 +1291,7 @@ async function issuepassVisitor(newrole, newname, newidNumber, newdocumentType, 
     ethnicity: newethnicity,
     photoAttributes: newphotoAttributes,
     passNumber: newpassNumber,
-    password: password,
+    password: hashedPassword, // Store the hashed password
     idNumberHost: idNumberHost,
     timeOfVisit: currentDate // Add the current date and time to the document
   });
