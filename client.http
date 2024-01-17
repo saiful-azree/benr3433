@@ -56,27 +56,29 @@ Content-Type: application/json
 ###
 
 POST http://localhost:3000/issuepassVisitor
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZE51bWJlciI6ImNoZW5nMTIzIiwicm9sZSI6Ikhvc3QiLCJpYXQiOjE3MDU0NjUyNTZ9.hkEgSfVtg5W3w1SYGDiYpDji4CgDhLr3KktsptRS30g
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZE51bWJlciI6IjIwMjIzMTEzIiwicm9sZSI6InNlY3VyaXR5IiwiaWF0IjoxNzA1NDEyNDM4fQ.1sWqfW-ADc5zxFw0C7bklKiq8s7QojylYLOZu0IkBuE
+
 {
-  "role": "visitor",
-  "name": "Baran", 
-  "idNumber": "baran123",
-  "documentType": "Mykad",
+  "role": "Host",
+  "name": "John Doe",
+  "idNumber": "1234567890",
+  "documentType": "Passport",
   "gender": "Male",
-  "birthDate": "2003-03-10",
-  "age": "51",
-  "documentExpiry": "2028-04-03",
-  "company": "Kepala",
-  "TelephoneNumber": "019236451",
-  "vehicleNumber": "YHB678",
-  "category": "Friend",
-  "ethnicity": "Indian",
-  "photoAttributes": "Photo Attributes",
-  "passNumber": "095",
-  "password": "1234",
-  "idNumberHost": "20223112"
+  "birthDate": "1990-01-01",
+  "age": 32,
+  "documentExpiry": "2025-01-01",
+  "company": "Example Corp",
+  "TelephoneNumber": "987654321",
+  "vehicleNumber": "ABC123",
+  "category": "Business",
+  "ethnicity": "Caucasian",
+  "photoAttributes": "Base64EncodedImage",
+  "passNumber": "876",
+  "password": "#Visitor123",
+  "idNumberHost": "1234567890"
 }
+
 
 ###
 
